@@ -1,16 +1,15 @@
+package concurent.student.first;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Base {
 
     private static final int STARTER_PEASANT_NUMBER = 5;
-    private static final int STARTER_PEASENT_MINING = 3;
+    private static final int START_PEASANT_MINING = 3;
     private static final int PEASANT_NUMBER_GOAL = 10;
 
     // lock to ensure only one unit can be trained at one time
@@ -21,41 +20,45 @@ public class Base {
     private final List<Peasant> peasants = Collections.synchronizedList(new LinkedList<>());
     private final List<Building> buildings = Collections.synchronizedList(new LinkedList<>());
 
-    // fixed size executor service
     // Create the initial 5 peasants - Use the STARTER_PEASANT_NUMBER constant
     // 3 of them should mine gold
     // 1 of them should cut tree
     // 1 should do nothing
     // Use the createPeasant() method
     public Base(String name) {
-        this.name = name;
-        for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
-            synchronized (peasants) {
+        synchronized (peasants) {
+            this.name = name;
+            for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
                 this.peasants.add(createPeasant());
             }
+            for (var i = 0; i < START_PEASANT_MINING; i++) {
+                this.peasants.get(i).startMining();
+            }
+            this.peasants.get(3).startCuttingWood();
         }
-
-        for (var i = 0; i < STARTER_PEASENT_MINING; i++) {
-            this.peasants.get(i).startMining();
-        }
-        this.peasants.get(3).startCuttingWood();
-
     }
 
     private void addPeasants() {
+
         for (var i = STARTER_PEASANT_NUMBER; i < PEASANT_NUMBER_GOAL; i++) {
             Peasant peasant = this.createPeasant();
             if (peasant != null) {
-                peasants.add(peasant);
+                synchronized (this.peasants) {
+                    peasants.add(peasant);
+                }
             } else {
                 i--;
             }
         }
         for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
-            peasants.get(i).startMining();
+            synchronized (this.peasants) {
+                peasants.get(i).startMining();
+            }
         }
         for (var i = STARTER_PEASANT_NUMBER; i < 7; i++) {
-            peasants.get(i).startCuttingWood();
+            synchronized (this.peasants) {
+                peasants.get(i).startCuttingWood();
+            }
         }
     }
 
@@ -216,7 +219,6 @@ public class Base {
                 if (building.getUnitType() == unitType && building != null) {
                     buildingNumber += 1;
                 }
-
                 if (buildingNumber == required) {
                     return true;
                 }

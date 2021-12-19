@@ -1,3 +1,5 @@
+// package concurent.student.second;
+
 public class Building extends Unit {
 
     private Building(Base owner, UnitType type) {

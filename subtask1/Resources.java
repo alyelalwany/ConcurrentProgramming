@@ -1,3 +1,5 @@
+package concurent.student.first;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Resources {

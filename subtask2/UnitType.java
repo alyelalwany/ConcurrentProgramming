@@ -1,3 +1,5 @@
+// package concurent.student.second;
+
 public enum UnitType {
 
     FARM(80, 20, 0, 2000),
@@ -5,7 +7,8 @@ public enum UnitType {
     BLACKSMITH(140, 60, 0, 5000),
     BARRACKS(160, 60, 0, 6000),
 
-    PEASANT(75, 0, 1, 1000);
+    PEASANT(75, 0, 1, 1000),
+    FOOTMAN(135, 0, 2, 1500);
 
     public int goldCost;
     public int woodCost;
