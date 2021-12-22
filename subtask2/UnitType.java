@@ -1,4 +1,4 @@
-// package concurent.student.second;
+package concurent.student.second;
 
 public enum UnitType {
 

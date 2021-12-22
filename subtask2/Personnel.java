@@ -1,4 +1,4 @@
-// package concurent.student.second;
+package concurent.student.second;
 
 import java.util.List;
 import java.util.Random;
@@ -44,8 +44,8 @@ public abstract class Personnel extends Unit {
      */
     private void startAttacking() {
         while (this.getHealth() > 0 && this.opponent.getHealth() > 0) {
-            int damage = this.getAttack();
-            this.opponent.loseHealth(damage);
+            int attackValue = this.getAttack();
+            this.opponent.loseHealth(attackValue);
             sleepForMsec(random.nextInt(ATTACK_WAIT_MAXIMUM) + ATTACK_WAIT_MINIMUM);
         }
         this.opponent = null;

@@ -1,2 +1,4 @@
 *.class
 *.zip
+concurrent/
+*.DS_Store

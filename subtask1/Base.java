@@ -1,5 +1,6 @@
 package concurent.student.first;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,39 +27,31 @@ public class Base {
     // 1 should do nothing
     // Use the createPeasant() method
     public Base(String name) {
-        synchronized (peasants) {
-            this.name = name;
-            for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
-                this.peasants.add(createPeasant());
-            }
-            for (var i = 0; i < START_PEASANT_MINING; i++) {
-                this.peasants.get(i).startMining();
-            }
-            this.peasants.get(3).startCuttingWood();
+        this.name = name;
+        for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
+            new Thread(() -> {
+                Peasant peasant = createPeasant();
+                if (this.peasants.size() < 4) {
+                    peasant.startMining();
+                }
+                if (this.peasants.size() == 4) {
+                    peasant.startCuttingWood();
+                }
+            }).start();
         }
     }
 
     private void addPeasants() {
-
-        for (var i = STARTER_PEASANT_NUMBER; i < PEASANT_NUMBER_GOAL; i++) {
+        while (peasants.size() < PEASANT_NUMBER_GOAL) {
             Peasant peasant = this.createPeasant();
             if (peasant != null) {
-                synchronized (this.peasants) {
-                    peasants.add(peasant);
+                if (peasants.size() < 8) {
+                    peasant.startMining();
+                } else if (peasants.size() == 8) {
+                    peasant.startMining();
                 }
-            } else {
-                i--;
             }
-        }
-        for (var i = 0; i < STARTER_PEASANT_NUMBER; i++) {
-            synchronized (this.peasants) {
-                peasants.get(i).startMining();
-            }
-        }
-        for (var i = STARTER_PEASANT_NUMBER; i < 7; i++) {
-            synchronized (this.peasants) {
-                peasants.get(i).startCuttingWood();
-            }
+            sleepForMsec(10);
         }
     }
 
@@ -73,11 +66,23 @@ public class Base {
     }
 
     private void buildLumbermill() {
-        buildBuilding(UnitType.LUMBERMILL);
+        while (!hasEnoughBuilding(UnitType.LUMBERMILL, 1)) {
+            Peasant peasant = this.getFreePeasant();
+            if (peasant != null) {
+                peasant.tryBuilding(UnitType.LUMBERMILL);
+            }
+            sleepForMsec(10);
+        }
     }
 
     private void buildBlacksmith() {
-        buildBuilding(UnitType.BLACKSMITH);
+        while (!hasEnoughBuilding(UnitType.BLACKSMITH, 1)) {
+            Peasant peasant = this.getFreePeasant();
+            if (peasant != null) {
+                peasant.tryBuilding(UnitType.BLACKSMITH);
+            }
+            sleepForMsec(10);
+        }
     }
 
     private void buildFarm() {
@@ -113,32 +118,37 @@ public class Base {
     // Stop harvesting with the peasants once everything is ready
     public void startPreparation() {
 
+        List<Thread> creationThreads = new ArrayList<>();
+        var t1 = new Thread(() -> buildFarm());
+        var t2 = new Thread(() -> addPeasants());
+        var t3 = new Thread(() -> buildLumbermill());
+        var t4 = new Thread(() -> buildBlacksmith());
+
+        creationThreads.add(t1);
+        creationThreads.add(t2);
+        creationThreads.add(t3);
+        creationThreads.add(t4);
+        creationThreads.forEach(t -> t.start());
+
         try {
-            var t1 = new Thread(() -> buildFarm());
-            t1.start();
-            var t2 = new Thread(() -> addPeasants());
-            t2.start();
-            var t3 = new Thread(() -> buildLumbermill());
-            t3.start();
-            var t4 = new Thread(() -> buildBlacksmith());
-            t4.start();
-
-            t1.join();
-            t2.join();
-            t3.join();
-            t4.join();
-
-            for (Peasant p : peasants) {
-                p.stopHarvesting();
-            }
-
-            System.out.println(this.name + " finished creating a base");
-            System.out.println(this.name + " peasants: " + this.peasants.size());
-            for (Building b : buildings) {
-                System.out.println(this.name + " has a  " + b.getUnitType().toString());
+            for (Thread t : creationThreads) {
+                t.join();
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+        synchronized (this.peasants) {
+            for (Peasant p : peasants) {
+                p.stopHarvesting();
+            }
+        }
+
+        System.out.println(this.name + " finished creating a base");
+        System.out.println(this.name + " peasants: " + this.peasants.size());
+        synchronized (this) {
+            for (Building b : buildings) {
+                System.out.println(this.name + " has a " + b.getUnitType().toString());
+            }
         }
     }
 
@@ -149,15 +159,9 @@ public class Base {
      * @return Peasant object, if found one, null if there isn't one
      */
     private Peasant getFreePeasant() {
-        // TODO implement - use the peasant's isFree() method
-        synchronized (this.peasants) {
-            for (var peasant : peasants) {
-                if (peasant.isFree()) {
-                    return peasant;
-                }
-            }
+        synchronized (peasants) {
+            return peasants.stream().filter(p -> p.isFree()).findFirst().orElse(null);
         }
-        return null;
     }
 
     /**
@@ -180,13 +184,20 @@ public class Base {
     private Peasant createPeasant() {
         Peasant result;
         if (resources.canTrain(UnitType.PEASANT.goldCost, UnitType.PEASANT.woodCost, UnitType.PEASANT.foodCost)) {
-            sleepForMsec(UnitType.PEASANT.buildTime);
-            this.trainingLock.lock();
-            this.resources.removeCost(UnitType.PEASANT.goldCost, UnitType.PEASANT.woodCost);
-            this.resources.updateCapacity(UnitType.PEASANT.foodCost);
-            result = Peasant.createPeasant(this);
-            this.trainingLock.unlock();
-            return result;
+            try {
+                this.trainingLock.lockInterruptibly();
+                sleepForMsec(UnitType.PEASANT.buildTime);
+                this.resources.removeCost(UnitType.PEASANT.goldCost, UnitType.PEASANT.woodCost);
+                this.resources.updateCapacity(UnitType.PEASANT.foodCost);
+                result = Peasant.createPeasant(this);
+                peasants.add(result);
+                System.out.println(this.name + " created a peasant");
+                return result;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                this.trainingLock.unlock();
+            }
         }
         return null;
     }
@@ -213,18 +224,9 @@ public class Base {
      */
     // check in the buildings list if the type has reached the required amount
     private boolean hasEnoughBuilding(UnitType unitType, int required) {
-        int buildingNumber = 0;
-        synchronized (this.buildings) {
-            for (var building : buildings) {
-                if (building.getUnitType() == unitType && building != null) {
-                    buildingNumber += 1;
-                }
-                if (buildingNumber == required) {
-                    return true;
-                }
-            }
+        synchronized (buildings) {
+            return buildings.stream().filter(b -> b.getUnitType() == unitType).count() >= required;
         }
-        return false;
     }
 
     private static void sleepForMsec(int sleepTime) {

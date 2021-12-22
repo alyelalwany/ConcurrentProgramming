@@ -121,14 +121,11 @@ public class Peasant extends Unit {
     // Use Building's createBuilding method to create the building
     private void startBuilding(UnitType buildingType) throws Exception {
         isBuilding.set(true);
-        System.out.println("Peasant started building..");
-        lock.lock();
         this.getOwner().getResources().removeCost(buildingType.goldCost, buildingType.woodCost);
-        sleepForMsec(buildingType.buildTime);
         this.getOwner().getBuildings().add(Building.createBuilding(buildingType, this.getOwner()));
+        sleepForMsec(buildingType.buildTime);
         System.out.println("Peasant done building " + buildingType.name());
         isBuilding.set(false);
-        lock.unlock();
     }
 
     /**

@@ -1,4 +1,4 @@
-// package concurent.student.second;
+package concurent.student.second;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -99,16 +99,12 @@ public class Base {
         });
 
         es.submit(() -> {
-            for (int i = 0; i < FOOTMAN_NUMBER_GOAL; i++) {
+            while (footmen.size() < FOOTMAN_NUMBER_GOAL) {
                 Footman f = createFootman();
-                while (f == null) {
-                    f = createFootman();
-                }
                 synchronized (this.footmen) {
                     footmen.add(f);
                 }
             }
-
         });
 
         es.shutdown();
@@ -201,7 +197,7 @@ public class Base {
         army.remove(p);
         if (p.getUnitType() == UnitType.PEASANT) {
             peasants.remove(p);
-        } else {
+        } else if (p.getUnitType() == UnitType.FOOTMAN) {
             footmen.remove(p);
         }
         System.out.println(this.name + " has lost a " + p.getUnitType().toString());
@@ -215,13 +211,8 @@ public class Base {
      */
     private Peasant getFreePeasant() {
         synchronized (peasants) {
-            for (Peasant p : peasants) {
-                if (p.isFree()) {
-                    return p;
-                }
-            }
+            return peasants.stream().filter(p -> p.isFree()).findFirst().orElse(null);
         }
-        return null;
     }
 
     /**
@@ -295,15 +286,9 @@ public class Base {
      * @return true, if required amount is reached (or surpassed), false otherwise
      */
     private boolean hasEnoughBuilding(UnitType unitType, int required) {
-        int cnt = 0;
         synchronized (buildings) {
-            for (Building b : buildings) {
-                if (b.getUnitType() == unitType) {
-                    cnt++;
-                }
-            }
+            return buildings.stream().filter(b -> b.getUnitType() == unitType).count() >= required;
         }
-        return cnt == required;
     }
 
     private static void sleepForMsec(int sleepTime) {
